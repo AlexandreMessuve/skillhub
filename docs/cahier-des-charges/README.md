@@ -1,93 +1,93 @@
-# Cahier des Charges — Projet SkillHub (Microservices)
+# **Cahier des Charges — Projet SkillHub**
 
 ## 1. Présentation du projet
+SkillHub est une plateforme web et mobile de gestion des compétences destinée aux entreprises. Elle permet de centraliser les compétences des collaborateurs, de proposer des formations et de suivre l'évolution des talents au sein d'une organisation. Le modèle est multi-entreprises, chaque entité gérant ses propres données de manière isolée.
 
-SkillHub est une plateforme web et mobile de gestion des compétences destinée aux entreprises.
-Elle permet aux utilisateurs de créer leur entreprise, d'y ajouter des RH et des collaborateurs, de déclarer et gérer leurs compétences, de consulter les formations disponibles et de s'y inscrire.
-Les RH et Admin peuvent suivre les compétences de leurs équipes, valider les actions des collaborateurs et visualiser des dashboards statistiques.
+---
 
 ## 2. Objectifs du projet
 
 ### Objectifs fonctionnels :
-- Mettre en place une validation de l'email lors de l'inscription (envoi d'un lien de confirmation par email).
-- Permettre l'activation d'une authentification à deux facteurs (2FA) ou la possibilité de se connecter avec une clé de sécurité pour renforcer la sécurité des comptes utilisateurs.
-- Permettre à un utilisateur de créer son entreprise lors de l'inscription.
-- Permettre à un Admin de gérer son entreprise : ajouter des RH et des collaborateurs.
-- Centraliser les informations de compétences des collaborateurs.
-- Proposer des formations adaptées.
-- Suivre les évolutions des compétences dans le temps.
-- Fournir un tableau de bord RH complet.
-- Ajouter un système de validation par un RH ou Admin pour les compétences ajoutées ou les inscriptions aux formations des collaborateurs.
+- Mettre en place une validation de l'e-mail lors de l'inscription via un lien de confirmation.
+- Proposer une authentification forte optionnelle (2FA ou clé de sécurité).
+- Permettre à un utilisateur de créer sa propre entreprise et d'en devenir le dirigeant (PDG).
+- Permettre à un PDG ou un RH d'inviter des collaborateurs à rejoindre une entreprise.
+- Centraliser et suivre les compétences des collaborateurs avec un système de validation.
+- Proposer un catalogue de formations et gérer les inscriptions (avec validation).
+- Fournir des tableaux de bord statistiques pour identifier les manques et les forces.
 
 ### Objectifs techniques :
-- Architecture en microservices.
-- API REST performante pour chaque microservice.
-- Frontend moderne en ReactJS.
-- Application mobile en React Native.
-- Conteneurisation complète avec Docker et orchestration avec Kubernetes.
-- Pipeline CI/CD avec GitHub Actions.
+- Développer une API REST performante et sécurisée (Spring Boot).
+- Créer un frontend web moderne et réactif (ReactJS).
+- Développer une application mobile compagnon (React Native).
+- Assurer une conteneurisation complète pour un déploiement simplifié (Docker).
+- Mettre en place un pipeline d'intégration et de déploiement continus (CI/CD) avec GitHub Actions.
+
+---
 
 ## 3. Utilisateurs & Rôles
+La plateforme définit une hiérarchie de rôles claire pour une gestion des permissions précise.
 
-| Rôle | Description | Droits principaux |
-|------|-------------|-------------------|
-| Collaborateur | Employé classique | Gérer son profil / compétences / formations (avec validation RH ou Admin) |
-| RH | Responsable RH | Gérer utilisateurs / compétences / formations / stats / valider les demandes |
-| Admin | Super Admin | Gérer l'entreprise / Ajouter RH et collaborateurs / Tous les droits (gestion globale, configuration, validation) |
+| Rôle | Description | Droits & Périmètre |
+| :--- | :--- | :--- |
+| **User** | État initial d'un utilisateur après inscription, avant d'être rattaché à une entreprise. | Gérer son profil, créer une nouvelle entreprise (devient PDG) ou accepter une invitation. |
+| **Employee** | Le collaborateur standard au sein d'une entreprise. | **Périmètre individuel :** Gérer son profil, ses compétences et ses inscriptions aux formations (soumis à validation). |
+| **RH** | Le responsable des Ressources Humaines au sein d'une entreprise. | **Périmètre de l'entreprise :** Tous les droits de l'Employé, plus la gestion des employés (CRUD), du catalogue de compétences/formations et la validation des demandes. |
+| **PDG** | Le dirigeant et administrateur principal d'une entreprise spécifique. | **Périmètre de l'entreprise :** Tous les droits du RH, plus la gestion des utilisateurs RH et la configuration de l'entreprise. |
+| **Admin** | Le super-administrateur de la plateforme SkillHub. | **Périmètre global :** Accès et gestion de toutes les données de la plateforme, gestion des configurations globales, supervision des entreprises. |
+
+---
 
 ## 4. Parcours Utilisateurs
 
-### À l'inscription :
-1. Création de compte utilisateur
-2. Choix entre :
-   - Créer une nouvelle entreprise (devient Admin de l'entreprise)
-   - Rejoindre une entreprise existante via un lien d'invitation envoyé par un Admin ou RH
-3. En fonction du choix, accès aux fonctionnalités associées
+### Inscription et Rattachement
+1.  Un individu crée un compte et obtient le rôle **User**.
+2.  Il doit valider son adresse e-mail.
+3.  Depuis son profil, il peut :
+    - **Option A : Créer une nouvelle entreprise.** Il devient alors le **PDG** de cette entreprise.
+    - **Option B : Rejoindre une entreprise existante** en utilisant un lien d'invitation unique envoyé par un **PDG** ou un **RH**. Le rôle (`Employee` ou `RH`) est défini dans l'invitation.
 
-### Admin :
-1. Connexion
-2. Accès au Dashboard Admin
-3. Gestion de son entreprise
-4. Ajout des RH et Collaborateurs
-5. Gestion des utilisateurs (CRUD)
-6. Gestion des compétences (CRUD)
-7. Gestion des formations (CRUD)
-8. Validation des compétences ajoutées par les collaborateurs
-9. Validation des inscriptions aux formations
-10. Accès aux statistiques (visualisation des gaps de compétences)
+### Parcours par Rôle
 
-### Collaborateur :
-1. Connexion
-2. Accès au Dashboard personnel
-3. Gestion de son profil
-4. Déclaration et modification de ses compétences (validation requise)
-5. Consultation des formations disponibles
-6. Inscription à une formation (validation requise)
+#### Employee :
+- Consulte son tableau de bord personnel.
+- Gère son profil (informations, mot de passe, 2FA).
+- Déclare ses compétences (soumis à la validation d'un RH/PDG).
+- Consulte le catalogue des formations de l'entreprise.
+- S'inscrit à une formation (soumis à la validation d'un RH/PDG).
 
-### RH :
-1. Connexion
-2. Accès au Dashboard RH
-3. Gestion des utilisateurs (CRUD)
-4. Gestion des compétences (CRUD)
-5. Gestion des formations (CRUD)
-6. Validation des compétences ajoutées par les collaborateurs
-7. Validation des inscriptions aux formations
-8. Accès aux statistiques
+#### RH :
+- Accède à un tableau de bord de gestion RH.
+- Gère les profils des **Employees** (inviter, modifier, désactiver).
+- Gère le catalogue de **compétences** et de **formations** de l'entreprise (CRUD).
+- **Valide** ou refuse les nouvelles compétences et les inscriptions aux formations soumises par les Employees.
+- Visualise les statistiques sur les compétences de l'entreprise.
 
-## 5. Modules Fonctionnels
+#### PDG :
+- Dispose de **tous les droits du RH**.
+- Gère les profils des utilisateurs **RH** (inviter, modifier, révoquer).
+- Configure les paramètres de son entreprise.
 
-- Validation de l'adresse email lors de l'inscription (l'utilisateur doit confirmer son email avant de pouvoir se connecter).
-- Authentification forte (optionnelle) via 2FA (Two Factor Authentication) ou possibilité de se connecter avec une clé de sécurité (security key).
-- Authentification JWT (Spring Security)
-- Gestion des entreprises (création et gestion par Admin)
-- Gestion des utilisateurs (CRUD par Admin et RH)
-- Gestion des rôles et permissions
-- Gestion des compétences (CRUD + Validation RH/Admin)
-- Gestion des formations (CRUD + Validation inscription RH/Admin)
-- Dashboard statistiques
-- Application mobile compagnon
-- Notifications email (optionnel)
-- Dark Mode / Responsive Design
+#### Admin (Super Admin) :
+- Accède à un "back-office" global de la plateforme.
+- Supervise l'ensemble des entreprises et des utilisateurs.
+- Gère la configuration globale de l'application.
+- Peut intervenir pour du support ou de la maintenance.
+
+---
+
+## 5. Modules Fonctionnels Clés
+- **Validation d'e-mail & Sécurité :** Processus de confirmation et options 2FA / clé de sécurité.
+- **Authentification JWT :** Système de token pour sécuriser l'API.
+- **Gestion Multi-Entreprises :** Isolation stricte des données entre les différentes entreprises.
+- **Gestion des Utilisateurs & Invitations :** CRUD complet avec un système d'invitation par lien.
+- **Gestion des Rôles et Permissions :** Mécanisme robuste pour appliquer les droits décrits ci-dessus.
+- **Gestion des Compétences :** Catalogue de compétences et système de validation.
+- **Gestion des Formations :** Catalogue de formations et système de validation des inscriptions.
+- **Dashboard & Statistiques :** Visualisation des données pour les RH et PDG.
+- **Application Mobile :** Version allégée pour les collaborateurs.
+
+---
 
 ## 6. Architecture en Microservices
 
@@ -103,28 +103,20 @@ Les RH et Admin peuvent suivre les compétences de leurs équipes, valider les a
 ## 7. Contraintes Techniques
 
 | Élément | Technologie choisie |
-|---------|---------------------|
-| Backend | Java 21 + Spring Boot 3.x + Maven |
-| Frontend Web | ReactJS + Vite + TailwindCSS |
-| Mobile | React Native (Expo) |
-| BDD | MySQL, PostgreSQL, MongoDB |
-| Conteneurisation | Docker + Kubernetes |
-| CI/CD | GitHub Actions |
-| Environnement Dev | Ubuntu 22.04 WSL2 |
+| :--- | :--- |
+| **Backend** | Java 21 + Spring Boot 3.4.4 + Maven |
+| **Frontend Web** | ReactJS + Vite + TailwindCSS |
+| **Mobile** | React Native (Expo) |
+| **Base de Données** | MySQL |
+| **Conteneurisation** | Docker + Docker Compose |
+| **CI/CD** | GitHub Actions |
+| **Environnement Dev** | Ubuntu 22.04 WSL2 |
+
+---
 
 ## 8. Risques et Contraintes
-
-- Synchronisation des microservices et gestion des dépendances.
-- Gestion propre des rôles et permissions.
-- Mise en place correcte de l'authentification JWT.
-- Optimisation des performances BDD pour les dashboards.
-- Gestion des validations RH/Admin efficace sans ralentir l'expérience utilisateur.
-- Gestion multi-entreprises avec isolation des données.
-
-## 9. Glossaire
-
-- CRUD : Create / Read / Update / Delete
-- JWT : Json Web Token (authentification sécurisée)
-- API REST : Interface de communication web
-- RH : Ressources Humaines
-- MCD / MLD : Modélisation base de données
+- **Complexité des Permissions :** La gestion des différents niveaux de rôles (notamment la distinction PDG/Admin) doit être rigoureuse.
+- **Isolation des Données :** La séparation des données entre les entreprises (multi-tenancy) doit être parfaite pour éviter toute fuite.
+- **Synchronisation API/Frontend :** Maintenir une communication fluide et cohérente.
+- **Performance des Dashboards :** Optimiser les requêtes pour l'agrégation de données statistiques.
+- **Expérience Utilisateur :** Le processus de validation par les RH/PDG ne doit pas créer de friction excessive pour les employés.
