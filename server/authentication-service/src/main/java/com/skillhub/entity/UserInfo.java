@@ -9,12 +9,13 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-@Data
+@Getter
+@Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@ToString
 @Entity
+@Table(name = "users")
 @EntityListeners(AuditingEntityListener.class)
 public class UserInfo {
     @Id
