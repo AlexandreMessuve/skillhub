@@ -4,6 +4,8 @@ import com.skillhub.entity.UserInfo;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
+
 import java.util.Optional;
 import java.util.UUID;
 
@@ -12,10 +14,10 @@ public interface UserInfoRepository extends JpaRepository<UserInfo, UUID> {
     /**
      * Finds a UserInfo entity by its email.
      *
-     * @param EMAIL the email of the user
+     * @param email the email of the user
      * @return an Optional containing the UserInfo if found, or empty if not found
      */
-    Optional<UserInfo> findByEmail(String EMAIL);
+    Optional<UserInfo> findByEmail(String email);
 
     /**
      * Finds a UserInfo entity by its username.
@@ -29,7 +31,8 @@ public interface UserInfoRepository extends JpaRepository<UserInfo, UUID> {
     /**
      * Deletes a UserInfo entity by its email.
      *
-     * @param EMAIL the email of the user to delete
+     * @param email the email of the user to delete
      */
-    void deleteByEmail(@Param("email") String EMAIL);
+    @Transactional
+    void deleteByEmail(String email);
 }
