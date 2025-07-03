@@ -8,8 +8,10 @@ import lombok.*;
 @AllArgsConstructor
 @ToString
 public class AccountCreationRequest {
+    private String email;
     private String password;
     private String lastname;
     private String firstname;
-    private String email;
+    private String phone;
+
 }
