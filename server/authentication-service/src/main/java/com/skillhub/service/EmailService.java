@@ -3,23 +3,32 @@ package com.skillhub.service;
 import com.skillhub.entity.UserInfo;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 @Service
 public class EmailService {
 
+    private static final Logger LOG = LoggerFactory.getLogger(EmailService.class);
+
     private final JavaMailSender mailSender;
-    private final String appBaseUrl;
+
+    @Value("${app.base.url}")
+    private String appBaseUrl;
+
+    @Value("${spring.mail.from}")
+    private String fromEmail;
 
     @Autowired
-    public EmailService(JavaMailSender mailSender, @Value("${app.base-url}") String appBaseUrl) {
+    public EmailService(JavaMailSender mailSender) {
         this.mailSender = mailSender;
-        this.appBaseUrl = appBaseUrl;
     }
 
     /**
@@ -29,6 +38,7 @@ public class EmailService {
     public void sendWelcomeEmail(UserInfo user) {
         SimpleMailMessage message = new SimpleMailMessage();
         message.setTo(user.getEmail());
+        message.setFrom(fromEmail);
         message.setSubject("Welcome to SkillHub!");
         message.setText("Hey " + user.getFirstName() + ",\n\n" +
                 "Your account has been successfully validated.\n\n" +
@@ -39,6 +49,7 @@ public class EmailService {
         System.out.println("Mail sent to: " + user.getEmail());
     }
 
+    @Async
     public void sendVerifyEmailHtml(UserInfo user) {
         try {
             MimeMessage mimeMessage = mailSender.createMimeMessage();
@@ -49,13 +60,15 @@ public class EmailService {
             String htmlMsg = "<h3>Hey " + user.getFirstName() + ",</h3><p>Please click on the link for : <a href=\"" + verificationUrl + "\">Verify my account</a></p>";
 
             helper.setText(htmlMsg, true);
+            helper.setFrom(fromEmail);
             helper.setTo(user.getEmail());
             helper.setSubject("SkillHub Account Verification");
 
             mailSender.send(mimeMessage);
+            LOG.info("Mail sent to: {}",user.getEmail());
 
         } catch (MessagingException e) {
-            System.err.println("Error fail to sent mail: " + e.getMessage());
+            LOG.error("Error fail to sent mail: {}",e.getMessage());
         }
     }
 }
