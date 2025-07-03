@@ -1,5 +1,6 @@
 package com.skillhub.util;
 
+import com.skillhub.security.CustomUserDetails;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
@@ -65,6 +66,15 @@ public class JwtUtil {
 
     public String generateToken(UserDetails userDetails) {
         Map<String, Object> claims = new HashMap<>();
+
+        if (userDetails instanceof CustomUserDetails customUserDetails) {
+            claims.put("userId", customUserDetails.getUserId());
+            claims.put("email", customUserDetails.getEmail());
+            claims.put("roles", customUserDetails.getAuthorities());
+            claims.put("firstName", customUserDetails.getFirstName());
+            claims.put("lastName", customUserDetails.getLastName());
+        }
+
         return createToken(claims, userDetails.getUsername());
     }
 
