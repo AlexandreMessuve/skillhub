@@ -2,6 +2,8 @@ package com.skillhub.service;
 
 import com.skillhub.repository.UserInfoRepository;
 import com.skillhub.entity.UserInfo;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -13,22 +15,22 @@ import java.util.UUID;
 @Service
 public class UserInfoService {
 
+    private static final Logger LOG = LoggerFactory.getLogger(UserInfoService.class);
+
     private final UserInfoRepository userInfoRepository;
     private final PasswordEncoder passwordEncoder;
-    private final EmailService emailService;
 
     @Autowired
     public UserInfoService(UserInfoRepository userInfoRepository, PasswordEncoder passwordEncoder, EmailService emailService) {
         this.userInfoRepository = userInfoRepository;
         this.passwordEncoder = passwordEncoder;
-        this.emailService = emailService;
     }
 
     /**
      * registerNewUser - register a new user with the provided details.
      */
     @Transactional
-    public void registerNewUser(String firstName, String lastName, String email, String password, String phoneNumber) {
+    public UserInfo registerNewUser(String firstName, String lastName, String email, String password, String phoneNumber) {
         if (userInfoRepository.findByEmail(email).isPresent()) {
             throw new IllegalStateException("Error: Email already in use.");
         }
@@ -46,32 +48,30 @@ public class UserInfoService {
                 .build();
         // Save the new user to the database
         UserInfo saveUser = userInfoRepository.save(newUser);
+        userInfoRepository.flush();
 
-        // Send a welcome email to the new user
-        emailService.sendVerifyEmailHtml(saveUser);
-
-        // Optionally, you can log the registration or perform additional actions here
-        System.out.println("New user registered: " + saveUser.getEmail());
+        LOG.info("New user registered: {}", saveUser.getEmail());
+        return saveUser;
     }
 
-    public boolean verifyUser(String token) {
+    @Transactional
+    public void verifyUser(String token) {
         UserInfo user = userInfoRepository.findByVerificationToken(token)
                 .orElseThrow(() -> new IllegalStateException("Error: Invalid verification token."));
-
-        if (user.isVerified()) {
-            return true;
-        }
 
         user.setVerified(true);
         user.setVerificationToken(null);
         userInfoRepository.save(user);
-        return true;
+        userInfoRepository.flush();
+        LOG.info("User verified: {}", user.getEmail());
     }
 
     public UserInfo getUserByEmail(String email) {
         return userInfoRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalStateException("Error: User not found with email: " + email));
     }
+
+
 
     public List<UserInfo> getAllUser() {
         return  userInfoRepository.findAll();
