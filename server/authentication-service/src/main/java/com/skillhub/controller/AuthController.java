@@ -5,6 +5,7 @@ import com.skillhub.dto.AccountCreationRequest;
 import com.skillhub.dto.AuthenticationRequest;
 import com.skillhub.dto.AuthenticationResponse;
 import com.skillhub.service.CustomUserDetailsService;
+import com.skillhub.service.EmailService;
 import com.skillhub.service.UserInfoService;
 import com.skillhub.util.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,6 +18,8 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.Map;
+
 @RestController
 @CrossOrigin(origins = "*", allowedHeaders = "*")
 @RequestMapping("/api/auth")
@@ -26,36 +29,43 @@ public class AuthController {
     private final JwtUtil jwtUtil;
     private final UserInfoService userService;
     private final CustomUserDetailsService customUserDetailsService;
+    private final EmailService emailService;
 
     @Autowired
     public AuthController(AuthenticationManager authenticationManager, JwtUtil jwtUtil, UserInfoService userService,
-                          CustomUserDetailsService customUserDetailsService) {
+                          CustomUserDetailsService customUserDetailsService, EmailService emailService) {
         this.authenticationManager = authenticationManager;
         this.jwtUtil = jwtUtil;
         this.userService = userService;
         this.customUserDetailsService = customUserDetailsService;
+        this.emailService = emailService;
     }
 
     @GetMapping("/test")
-    public ResponseEntity<String> test() {
-        return ResponseEntity.ok("success");
+    public ResponseEntity<Map<String, String>> test() {
+        Map<String, String> response = Map.of("message", "Hello, this is a test endpoint!");
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping("/signup")
-    public ResponseEntity<String> signup(@RequestBody AccountCreationRequest request) {
+    public ResponseEntity<Map<String, String>> signup(@RequestBody AccountCreationRequest request) {
         try {
-            userService.registerNewUser(
+            UserInfo user = userService.registerNewUser(
                     request.getFirstname(),
                     request.getLastname(),
                     request.getEmail(),
                     request.getPassword(),
-                    request.getEmail()
+                    request.getPhone()
             );
-            return ResponseEntity.status(HttpStatus.CREATED).body("User registered successfully");
+           emailService.sendVerifyEmailHtml(user);
+            Map<String, String> response = Map.of("message", "User registered successfully. Please check your email for verification.");
+            return ResponseEntity.status(HttpStatus.CREATED).body(response);
         } catch (IllegalStateException e) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
+            Map<String, String> response = Map.of("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("An error occurred during registration.");
+            Map<String, String> response = Map.of("message", "An error occurred during registration.");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
         }
     }
 
@@ -92,12 +102,19 @@ public class AuthController {
 
 
     @GetMapping("/verify")
-    public ResponseEntity<String> verifyAccount(@RequestParam String token) {
-        boolean isVerified = userService.verifyUser(token);
-        if (isVerified) {
-            return ResponseEntity.ok("Compte vérifié avec succès !");
-        } else {
-            return ResponseEntity.badRequest().body("Le jeton de vérification est invalide ou a expiré.");
+    public ResponseEntity<Map<String, String>> verifyAccount(@RequestParam String token) {
+        if (token.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Token must not be empty");
+        }
+        try {
+            userService.verifyUser(token);
+            Map<String, String> response = Map.of("message", "Account verified successfully");
+            return ResponseEntity.ok(response);
+        } catch (IllegalStateException e) {
+
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("message", "An error occurred during verification."));
         }
     }
 }
