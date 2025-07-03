@@ -1,5 +1,6 @@
 package com.skillhub.controller;
 
+import com.skillhub.dto.AccountCreationResponse;
 import com.skillhub.entity.UserInfo;
 import com.skillhub.dto.AccountCreationRequest;
 import com.skillhub.dto.AuthenticationRequest;
@@ -15,6 +16,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -48,7 +50,9 @@ public class AuthController {
     }
 
     @PostMapping("/signup")
-    public ResponseEntity<Map<String, String>> signup(@RequestBody AccountCreationRequest request) {
+    public ResponseEntity<AccountCreationResponse> signup(@Validated @RequestBody AccountCreationRequest request) {
+        AccountCreationResponse response = new AccountCreationResponse();
+        // This method handles user registration
         try {
             UserInfo user = userService.registerNewUser(
                     request.getFirstname(),
@@ -58,27 +62,32 @@ public class AuthController {
                     request.getPhone()
             );
            emailService.sendVerifyEmailHtml(user);
-            Map<String, String> response = Map.of("message", "User registered successfully. Please check your email for verification.");
+            response.setAccount_creation_status("Account created successfully. Please check your email to verify your account.");
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
         } catch (IllegalStateException e) {
-            Map<String, String> response = Map.of("message", e.getMessage());
+            response.setError_msg(e.getMessage());
             return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
         } catch (Exception e) {
-            Map<String, String> response = Map.of("message", "An error occurred during registration.");
+            response.setError_msg("An error occurred during registration.");
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
         }
     }
 
     @PostMapping("/authenticate")
-    public ResponseEntity<AuthenticationResponse> authenticate(@RequestBody AuthenticationRequest request) {
-        if (request.getEmail().isEmpty() || request.getPassword().isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email and password must not be empty");
+    public ResponseEntity<AuthenticationResponse> authenticate(@Validated @RequestBody AuthenticationRequest request) {
+        UserInfo user;
+        AuthenticationResponse response = new AuthenticationResponse();
+        try {
+            user = userService.getUserByEmail(request.getEmail());
+        } catch (IllegalStateException e) {
+            response.setError(e.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
         }
-        UserInfo user = userService.getUserByEmail(request.getEmail());
 
         if (!user.isVerified()){
+            response.setError("Account not verified");
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(AuthenticationResponse.builder().error("Account not verified").build());
+                    .body(response);
         }
 
         try {
@@ -86,32 +95,30 @@ public class AuthController {
                     new UsernamePasswordAuthenticationToken((request.getEmail()), request.getPassword())
             );
         } catch (BadCredentialsException e) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Incorrect email or password", e);
+            response.setError(e.getMessage() + "Incorrect email or password");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
         }
 
         final UserDetails userDetails = customUserDetailsService.loadUserByUsername(request.getEmail());
         final String jwt = jwtUtil.generateToken(userDetails);
         if (jwt == null) {
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to generate JWT token");
+            response.setError("Failed to generate JWT token");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
-        AuthenticationResponse authenticationResponse = AuthenticationResponse.builder()
-                .jwt("Bearer " + jwt)
-                .build();
-        return ResponseEntity.ok(authenticationResponse);
+        response.setJwt(jwt);
+        return ResponseEntity.ok(response);
     }
 
 
     @GetMapping("/verify")
     public ResponseEntity<Map<String, String>> verifyAccount(@RequestParam String token) {
         if (token.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Token must not be empty");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", "Token must not be empty"));
         }
         try {
             userService.verifyUser(token);
-            Map<String, String> response = Map.of("message", "Account verified successfully");
-            return ResponseEntity.ok(response);
+            return ResponseEntity.ok(Map.of("message", "Account verified successfully"));
         } catch (IllegalStateException e) {
-
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("message", "An error occurred during verification."));

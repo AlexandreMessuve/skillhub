@@ -30,7 +30,7 @@ public class UserInfoService {
      * registerNewUser - register a new user with the provided details.
      */
     @Transactional
-    public UserInfo registerNewUser(String firstName, String lastName, String email, String password, String phoneNumber) {
+    public UserInfo registerNewUser(String firstName, String lastName, String email, String password, String phoneNumber) throws IllegalStateException {
         if (userInfoRepository.findByEmail(email).isPresent()) {
             throw new IllegalStateException("Error: Email already in use.");
         }
@@ -55,9 +55,9 @@ public class UserInfoService {
     }
 
     @Transactional
-    public void verifyUser(String token) {
+    public void verifyUser(String token) throws IllegalStateException {
         UserInfo user = userInfoRepository.findByVerificationToken(token)
-                .orElseThrow(() -> new IllegalStateException("Error: Invalid verification token."));
+                .orElseThrow(() -> new IllegalStateException("Token is invalid or expired."));
 
         user.setVerified(true);
         user.setVerificationToken(null);
@@ -68,7 +68,7 @@ public class UserInfoService {
 
     public UserInfo getUserByEmail(String email) {
         return userInfoRepository.findByEmail(email)
-                .orElseThrow(() -> new IllegalStateException("Error: User not found with email: " + email));
+                .orElseThrow(() -> new IllegalStateException("User not found with email: " + email));
     }
 
 
