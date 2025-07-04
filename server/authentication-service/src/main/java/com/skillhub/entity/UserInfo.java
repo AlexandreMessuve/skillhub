@@ -6,7 +6,10 @@ import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
+import java.security.SecureRandom;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Getter
@@ -42,13 +45,33 @@ public class UserInfo {
     @Column(name = "phone_number", unique = true)
     private String phoneNumber;
 
-    @Column(name = "verification_token", nullable = true)
+    @Column(name = "verification_token")
     private String verificationToken;
 
-    private boolean verified;
+    @Column(name = "is_verified")
+    @Builder.Default
+    private boolean isVerified = false;
 
-    @Column(name = "2fa_enabled")
-    private boolean doubleAuthEnabled;
+    @Column(name = "is_2fa_enabled")
+    @Builder.Default
+    private boolean is2faEnabled = false;
+
+    @Column(name = "totp_secret")
+    private String totpSecret;
+
+    @Column(name = "last_2fa_timestamp")
+    private Long last2faTimestamp;
+
+    @Column(name = "backup_codes")
+
+    @OneToMany(
+            mappedBy = "user",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true,
+            fetch = FetchType.LAZY
+    )
+    @Builder.Default
+    private List<BackupCode> backupCodes = new ArrayList<>();
 
     @Column(name = "public_key")
     private String publicKey;
