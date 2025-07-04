@@ -10,5 +10,7 @@ import lombok.*;
 public class AuthenticationResponse {
     private String jwt;
     private String error;
-    private String firstName;
+    private String message;
+    private boolean is2faEnabled;
+    private String preAuthToken;
 }
