@@ -1,12 +1,10 @@
 package com.skillhub.controller;
 
-import com.skillhub.dto.AccountCreationResponse;
+import com.skillhub.dto.*;
 import com.skillhub.entity.UserInfo;
-import com.skillhub.dto.AccountCreationRequest;
-import com.skillhub.dto.AuthenticationRequest;
-import com.skillhub.dto.AuthenticationResponse;
 import com.skillhub.service.CustomUserDetailsService;
 import com.skillhub.service.EmailService;
+import com.skillhub.service.PreAuthTokenService;
 import com.skillhub.service.UserInfoService;
 import com.skillhub.util.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,10 +13,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Map;
 
@@ -32,15 +28,18 @@ public class AuthController {
     private final UserInfoService userService;
     private final CustomUserDetailsService customUserDetailsService;
     private final EmailService emailService;
+    private final PreAuthTokenService preAuthTokenService;
 
     @Autowired
     public AuthController(AuthenticationManager authenticationManager, JwtUtil jwtUtil, UserInfoService userService,
-                          CustomUserDetailsService customUserDetailsService, EmailService emailService) {
+                          CustomUserDetailsService customUserDetailsService, EmailService emailService,
+                          PreAuthTokenService preAuthTokenService) {
         this.authenticationManager = authenticationManager;
         this.jwtUtil = jwtUtil;
         this.userService = userService;
         this.customUserDetailsService = customUserDetailsService;
         this.emailService = emailService;
+        this.preAuthTokenService = preAuthTokenService;
     }
 
     @GetMapping("/test")
@@ -73,10 +72,19 @@ public class AuthController {
         }
     }
 
-    @PostMapping("/authenticate")
+    @PostMapping("/login")
     public ResponseEntity<AuthenticationResponse> authenticate(@Validated @RequestBody AuthenticationRequest request) {
         UserInfo user;
         AuthenticationResponse response = new AuthenticationResponse();
+        try {
+            authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken((request.getEmail()), request.getPassword())
+            );
+        } catch (BadCredentialsException e) {
+            response.setError(e.getMessage() + "Incorrect email or password");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
+        }
+
         try {
             user = userService.getUserByEmail(request.getEmail());
         } catch (IllegalStateException e) {
@@ -90,24 +98,54 @@ public class AuthController {
                     .body(response);
         }
 
-        try {
-            authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken((request.getEmail()), request.getPassword())
-            );
-        } catch (BadCredentialsException e) {
-            response.setError(e.getMessage() + "Incorrect email or password");
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
+        if(user.is2faEnabled()){
+            String preAuthToken = preAuthTokenService.generateToken(user.getEmail());
+            response.setMessage("Please enter your 2fa code or use backup code");
+            response.setPreAuthToken(preAuthToken);
+            response.set2faEnabled(true);
+            return ResponseEntity.ok(response);
         }
 
-        final UserDetails userDetails = customUserDetailsService.loadUserByUsername(request.getEmail());
-        final String jwt = jwtUtil.generateToken(userDetails);
-        if (jwt == null) {
-            response.setError("Failed to generate JWT token");
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
-        }
-        response.setJwt(jwt);
-        return ResponseEntity.ok(response);
+        return generateJwtResponse(user.getEmail());
     }
+
+    @PostMapping("/login/verify")
+    public ResponseEntity<AuthenticationResponse> authWithBackupCode(@Validated @RequestBody TwoFactorRequest twoFactorRequest) {
+        AuthenticationResponse response = new AuthenticationResponse();
+        if (!preAuthTokenService.isValidToken(twoFactorRequest.getEmail(), twoFactorRequest.getPreAuthToken())){
+            response.setError("Invalid pre-auth token");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
+        }
+        if (userService.verifySecondFactor(twoFactorRequest.getEmail(), twoFactorRequest.getCode())) {
+            return generateJwtResponse(twoFactorRequest.getEmail());
+        }
+        response.setError("Invalid code");
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
+    }
+
+    @PostMapping("/resend-verification")
+    public ResponseEntity<Map<String, String>> resendVerificationEmail(@RequestParam String email) {
+        if (email.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", "Email must not be empty"));
+        }
+        try {
+            UserInfo user = userService.getUserByEmail(email);
+            if (user == null) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "User not found"));
+            }
+            if (user.isVerified()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", "User is already verified"));
+            }
+            emailService.sendVerifyEmailHtml(user);
+            return ResponseEntity.ok(Map.of("message", "Verification email sent successfully"));
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", "An error occurred while resending the verification email."));
+        }
+    }
+
+
 
 
     @GetMapping("/verify")
@@ -123,5 +161,16 @@ public class AuthController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("message", "An error occurred during verification."));
         }
+    }
+
+    public ResponseEntity<AuthenticationResponse> generateJwtResponse(String email) {
+        AuthenticationResponse response = new AuthenticationResponse();
+        final String jwt = jwtUtil.generateToken(customUserDetailsService.loadUserByUsername(email));
+        if (jwt == null) {
+            response.setError("Failed to generate JWT token");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+        }
+        response.setJwt(jwt);
+        return ResponseEntity.ok(response);
     }
 }
