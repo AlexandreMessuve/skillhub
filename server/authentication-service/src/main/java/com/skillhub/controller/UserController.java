@@ -1,69 +1,72 @@
 package com.skillhub.controller;
 
-import com.skillhub.dto.TwoFactorRequest;
-import com.skillhub.entity.UserInfo;
-import com.skillhub.service.TwoFactorAuthService;
+import com.skillhub.dto.EnabledMfaRequest;
+import com.skillhub.dto.SetupMfaRequest;
 import com.skillhub.service.UserInfoService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/user")
+@RequestMapping("/api/user/2fa")
 public class UserController {
-
-    private final TwoFactorAuthService twoFactorAuthService;
 
     private final UserInfoService userInfoService;
 
+    /**
+     * Constructor for UserController.
+     *
+     * @param userInfoService the service to handle user information and MFA operations
+     */
     @Autowired
-    public UserController(TwoFactorAuthService twoFactorAuthService, UserInfoService userInfoService) {
-        this.twoFactorAuthService = twoFactorAuthService;
+    public UserController(UserInfoService userInfoService) {
         this.userInfoService = userInfoService;
     }
 
-    @PutMapping("/generate-2fa-qrcode")
+    /**
+     * Endpoint to initiate the setup of Multi-Factor Authentication (MFA).
+     *
+     * @param setupMfaRequest the request containing MFA setup details
+     * @param authentication  the current user's authentication details
+     * @return a response entity containing the setup data
+     */
+    @PostMapping("/setup")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<Map<String, String>> generate2faQrcode(Authentication authentication) {
-        try {
-            String secret = twoFactorAuthService.generateNewSecret();
-            userInfoService.update2FAuthentication(authentication.getName(), secret);
-            String qrCodeUri = twoFactorAuthService.getQrCodeUri(secret, authentication.getName());
-            return ResponseEntity.ok(Map.of("qrCodeUri", qrCodeUri));
-        }catch(RuntimeException e){
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", "Qr Code generated failed"));
-        }
-        catch (Exception e){
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
+    public ResponseEntity<Map<String, Object>> setupMfa(@Validated @RequestBody SetupMfaRequest setupMfaRequest, Authentication authentication) {
+        Map<String, Object> setupData = userInfoService.initiateMfaSetup(authentication.getName(), setupMfaRequest.getMfaMethod());
+        return ResponseEntity.ok(setupData);
     }
 
-    @PostMapping("/enable-2fa")
+    /**
+     * Endpoint to enable Multi-Factor Authentication (MFA) for the user.
+     *
+     * @param enabledMfaRequest the request containing MFA enabling details
+     * @param authentication    the current user's authentication details
+     * @return a response entity containing backup codes
+     */
+    @PostMapping("/enable")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<Map<String, String>> enableTwoFactorAuthentication(@Validated @RequestBody TwoFactorRequest twoFactorRequest, Authentication authentication) {
-        try {
-            UserInfo userInfo = userInfoService.getUserByEmail(authentication.getName());
-            if (userInfo.is2faEnabled()) {
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message","2FA is already enabled"));
-            }
-            if (!userInfoService.verifySecondFactor(twoFactorRequest.getEmail(), twoFactorRequest.getCode())){
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message","Invalid code"));
-            }
-            userInfoService.updateEnable2FAuthentication(authentication.getName());
-            return ResponseEntity.ok(Map.of(
-                    "message", "2FA enabled successfully",
-                    "backupCodes", String.join(",", userInfoService.generateAndSetBackupCodes(authentication.getName()))
-                    ));
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("message","Failed to enable 2FA"));
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
+    public ResponseEntity<Map<String, List<String>>> enableMfa(@Validated @RequestBody EnabledMfaRequest enabledMfaRequest, Authentication authentication) {
+        List<String> backupCodes = userInfoService.enableMfa(authentication.getName(),enabledMfaRequest.getMfaMethod(), enabledMfaRequest.getMfaCode());
+        return ResponseEntity.ok(Map.of("backupCodes", backupCodes));
+    }
+
+    /**
+     * Endpoint to disable Multi-Factor Authentication (MFA) for the user.
+     *
+     * @param authentication the current user's authentication details
+     * @return a response entity indicating the result of the operation
+     */
+    @PostMapping("/resend-2fa-code")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Void> sendMfaCode(Authentication authentication) {
+        userInfoService.sendEmailCode(authentication.getName());
+        return ResponseEntity.ok().build();
     }
 }
