@@ -1,0 +1,103 @@
+# Docker Compose for SkillHub
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: skillhub-db
+    restart: always
+    ports:
+      - "${DATABASE_PORT}:${DATABASE_PORT}"
+    environment:
+        MYSQL_ROOT_PASSWORD: ${DATABASE_ROOT_PASSWORD}
+        MYSQL_DATABASE: ${DATABASE_NAME}
+        MYSQL_USER: ${DATABASE_USERNAME}
+        MYSQL_PASSWORD: ${DATABASE_PASSWORD}
+    volumes:
+      -  db_data:/var/lib/mysql
+    networks:
+        - skillhub-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "${DATABASE_USERNAME}", "-p${DATABASE_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+    # -----------------------------------------------------
+
+
+  mailhog:
+      image: mailhog/mailhog
+      container_name: mailhog
+      restart: always
+      ports:
+        - "1025:1025"
+        - "8025:8025"
+      volumes:
+        - mailhog_data:/data
+      networks:
+        - skillhub-network
+
+# -----------------------------------------------------
+
+  authentication-service:
+    build:
+      context: ./authentication-service
+      dockerfile: Dockerfile
+    container_name: authentication-service
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+      mailhog:
+        condition: service_started
+    ports:
+      - "${AUTH_PORT}:${AUTH_PORT}"
+    environment:
+      AUTH_PORT: ${AUTH_PORT}
+      DATABASE_URL: db
+      DATABASE_PORT: ${DATABASE_PORT}
+      DATABASE_NAME: ${DATABASE_NAME}
+      DATABASE_USERNAME: ${DATABASE_USERNAME}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      BASE_URL: ${BASE_URL}
+      MAIL_HOST: mailhog
+      MAIL_PORT: 1025
+      ACTIVE_PROFILE: ${ACTIVE_PROFILE}
+      MAIL_FROM: ${MAIL_FROM}
+
+    volumes:
+      - ./app-logs/authentication-service:/app/logs
+    networks:
+      - skillhub-network
+
+# -----------------------------------------------------
+
+  sonarqube:
+    image: sonarqube:lts-community
+    container_name: sonarqube
+    restart: always
+    ports:
+      - "9000:9000"
+    volumes:
+      - sonarqube_data:/opt/sonarqube/data
+      - sonarqube_extensions:/opt/sonarqube/extensions
+      - sonarqube_logs:/opt/sonarqube/logs
+    networks:
+      - skillhub-network
+
+# -----------------------------------------------------
+
+
+
+volumes:
+  db_data:
+  mailhog_data:
+  sonarqube_data:
+  sonarqube_extensions:
+  sonarqube_logs:
+
+networks:
+  skillhub-network:
+    driver: bridge
