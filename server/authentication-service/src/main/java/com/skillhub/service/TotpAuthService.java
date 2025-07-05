@@ -15,9 +15,9 @@ import org.springframework.stereotype.Service;
 
 import static dev.samstevens.totp.util.Utils.getDataUriForImage;
 @Service
-public class TwoFactorAuthService {
+public class TotpAuthService {
 
-    private static final Logger LOG = LoggerFactory.getLogger(TwoFactorAuthService.class);
+    private static final Logger LOG = LoggerFactory.getLogger(TotpAuthService.class);
 
     public String generateNewSecret(){
         SecretGenerator secretGenerator = new DefaultSecretGenerator();
