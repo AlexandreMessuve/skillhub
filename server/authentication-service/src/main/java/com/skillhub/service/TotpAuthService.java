@@ -19,11 +19,24 @@ public class TotpAuthService {
 
     private static final Logger LOG = LoggerFactory.getLogger(TotpAuthService.class);
 
+    /**
+     * Generates a new TOTP secret.
+     *
+     * @return A new TOTP secret as a String.
+     */
     public String generateNewSecret(){
         SecretGenerator secretGenerator = new DefaultSecretGenerator();
         return secretGenerator.generate();
     }
 
+    /**
+     * Generates a QR code URI for the given TOTP secret and email.
+     *
+     * @param secret The TOTP secret.
+     * @param email The user's email address.
+     * @return A data URI containing the QR code image.
+     * @throws RuntimeException if there is an error generating the QR code.
+     */
     public String getQrCodeUri(String secret, String email) throws RuntimeException{
         QrData data = new QrData.Builder()
                 .label(email)
@@ -44,6 +57,13 @@ public class TotpAuthService {
         }
     }
 
+    /**
+     * Validates a TOTP code against the provided secret.
+     *
+     * @param secret The TOTP secret.
+     * @param code The TOTP code to validate.
+     * @return true if the code is valid, false otherwise.
+     */
     public boolean isValidCode(String secret, String code) {
         TimeProvider timeProvider = new SystemTimeProvider();
         CodeGenerator codeGenerator = new DefaultCodeGenerator(HashingAlgorithm.SHA1, 6);
