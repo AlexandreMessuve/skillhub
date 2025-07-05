@@ -45,16 +45,14 @@ public class UserInfo {
     @Column(name = "phone_number", unique = true)
     private String phoneNumber;
 
-    @Column(name = "verification_token")
-    private String verificationToken;
-
     @Column(name = "is_verified")
     @Builder.Default
     private boolean isVerified = false;
 
-    @Column(name = "is_2fa_enabled")
+    @Column(name = "prefered_mfa_method")
+    @Enumerated(EnumType.STRING)
     @Builder.Default
-    private boolean is2faEnabled = false;
+    private MfaMethod preferedMfaMethod = MfaMethod.NONE;
 
     @Column(name = "totp_secret")
     private String totpSecret;
@@ -62,8 +60,11 @@ public class UserInfo {
     @Column(name = "last_2fa_timestamp")
     private Long last2faTimestamp;
 
-    @Column(name = "backup_codes")
+    @Column(name = "verification_token")
+    @Builder.Default
+    private String verificationToken = UUID.randomUUID().toString();
 
+    @Column(name = "backup_codes")
     @OneToMany(
             mappedBy = "user",
             cascade = CascadeType.ALL,
