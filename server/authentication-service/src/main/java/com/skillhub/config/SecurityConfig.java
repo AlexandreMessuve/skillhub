@@ -21,21 +21,45 @@ public class SecurityConfig {
 
     private final JwtRequestFilter jwtRequestFilter;
 
+    /**
+     * Constructor for SecurityConfig that initializes the JwtRequestFilter.
+     *
+     * @param jwtRequestFilter the JwtRequestFilter to be used in the security configuration
+     */
     @Autowired
     public SecurityConfig(JwtRequestFilter jwtRequestFilter) {
         this.jwtRequestFilter = jwtRequestFilter;
     }
 
+    /**
+     * Provides a PasswordEncoder bean for the application.
+     *
+     * @return the PasswordEncoder bean
+     */
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
+    /**
+     * Provides the AuthenticationManager bean for the application.
+     *
+     * @param authenticationConfiguration the AuthenticationConfiguration to use
+     * @return the AuthenticationManager bean
+     * @throws Exception if an error occurs during creation
+     */
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration) throws Exception {
         return authenticationConfiguration.getAuthenticationManager();
     }
 
+    /**
+     * Configures the security filter chain for the application.
+     *
+     * @param http the HttpSecurity object to configure
+     * @return the configured SecurityFilterChain
+     * @throws Exception if an error occurs during configuration
+     */
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
