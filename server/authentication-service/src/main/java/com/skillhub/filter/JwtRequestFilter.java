@@ -28,12 +28,27 @@ public class JwtRequestFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
 
+    /**
+     * Constructor for JwtRequestFilter.
+     *
+     * @param customUserDetailsService the service to load user details
+     * @param jwtUtil                  the utility class for JWT operations
+     */
     @Autowired
     public JwtRequestFilter(CustomUserDetailsService customUserDetailsService, JwtUtil jwtUtil) {
         this.customUserDetailsService = customUserDetailsService;
         this.jwtUtil = jwtUtil;
     }
 
+    /**
+     * This method is called for every request to check if the JWT is valid and set the authentication in the security context.
+     *
+     * @param request  the HTTP request
+     * @param response the HTTP response
+     * @param chain    the filter chain
+     * @throws ServletException if an error occurs during filtering
+     * @throws IOException      if an I/O error occurs
+     */
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
