@@ -3,6 +3,7 @@ package com.skillhub.dto;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -22,6 +23,7 @@ public class MfaAuthRequest {
     @NotBlank(message = "Pre-authentication token cannot be blank")
     private String preAuthToken;
 
-    @NotNull(message = "mfaMethod cannot be null, for exemple: SMS, EMAIL, TOTP")
+    @NotBlank(message = "MFA code cannot be blank")
+    @Pattern(regexp = "^[0-9]{6}$", message = "MFA code must be a 6-digit number")
     private String mfaCode;
 }

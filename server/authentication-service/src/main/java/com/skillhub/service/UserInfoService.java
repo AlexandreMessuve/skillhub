@@ -6,6 +6,7 @@ import com.skillhub.repository.UserInfoRepository;
 import com.skillhub.entity.UserInfo;
 import com.skillhub.service.mfa.MfaManagerService;
 import com.skillhub.service.mfa.MfaProvider;
+import com.skillhub.service.mfa.SmsMfaProvider;
 import com.skillhub.util.MyUtil;
 import dev.samstevens.totp.time.SystemTimeProvider;
 import dev.samstevens.totp.time.TimeProvider;
@@ -29,19 +30,16 @@ public class UserInfoService {
     private final UserInfoRepository userInfoRepository;
     private final PasswordEncoder passwordEncoder;
     private final MyUtil myUtil;
-    private final PreAuthTokenService preAuthTokenService;
     private final MfaManagerService mfaManagerService;
 
     @Autowired
     public UserInfoService(UserInfoRepository userInfoRepository,
                            PasswordEncoder passwordEncoder,
                            MyUtil myUtil,
-                           PreAuthTokenService preAuthTokenService,
                            MfaManagerService mfaManagerService) {
         this.userInfoRepository = userInfoRepository;
         this.passwordEncoder = passwordEncoder;
         this.myUtil = myUtil;
-        this.preAuthTokenService = preAuthTokenService;
         this.mfaManagerService = mfaManagerService;
     }
 
@@ -138,6 +136,44 @@ public class UserInfoService {
     }
 
     /**
+     * sendVerifyPhoneNumber - initiates the process to verify the user's phone number.
+     * @param email the email of the user
+     * @return a map containing the necessary information for phone number verification
+     * @throws IllegalStateException if the phone number is not set or already verified
+     */
+    public Map<String, Object> sendVerifyPhoneNumber(String email) {
+        UserInfo user = getUserByEmail(email);
+        if (user.getPhoneNumber().isEmpty()) {
+            throw new IllegalStateException("Phone number is not set for user: " + email);
+        }
+        if (user.isPhoneNumberVerified()) {
+            throw new IllegalStateException("Phone number is already verified for user: " + email);
+        }
+        return mfaManagerService.getProvider(MfaMethod.SMS).initiateSetup(user);
+    }
+
+    /**
+     * verifyPhoneNumber - verifies the user's phone number using the provided code.
+     * @param userInfo the UserInfo object containing user details
+     * @param code the verification code sent to the user's phone
+     * @return a map containing the status and message of the verification process
+     * @throws IllegalStateException if the verification code is invalid
+     */
+    @Transactional
+    public Map<String, String> verifyPhoneNumber(UserInfo userInfo, String code){
+        MfaProvider provider = mfaManagerService.getProvider(MfaMethod.SMS);
+        if (provider.verifyCode(userInfo, code)){
+            userInfo.setPhoneNumberVerified(true);
+            updateUserInfo(userInfo);
+            LOG.info("Phone number verified for user: {}", userInfo.getEmail());
+            return Map.of("status", "success", "message", "Phone number verified successfully.");
+        } else {
+            LOG.error("Failed to verify phone number for user: {}", userInfo.getEmail());
+            throw new IllegalStateException("Invalid verification code for phone number.");
+        }
+
+    }
+    /**
      * initiateMfaSetup - initiates the setup process for Multi-Factor Authentication (MFA).
      * @param email the email of the user
      * @param method the MFA method to set up
@@ -150,6 +186,11 @@ public class UserInfoService {
         MfaProvider provider = mfaManagerService.getProvider(method);
         if (provider == null) {
             throw new IllegalArgumentException("Unsupported MFA method: " + method);
+        }
+        if (method == MfaMethod.SMS){
+            if(user.getPhoneNumber().isEmpty() || !user.isPhoneNumberVerified()) {
+                throw new IllegalStateException("Phone number is not verified or not set for user: " + user.getEmail());
+            }
         }
         Map<String, Object> data = provider.initiateSetup(user);
 
@@ -189,12 +230,13 @@ public class UserInfoService {
         return generateAndSetBackupCodes(user);
     }
 
-    public void sendEmailCode(String email) {
+    /**
+     * reSendMfaCode - resends the MFA verification code to the user.
+     * @param email the email of the user
+     */
+    public void reSendMfaCode(String email) {
         UserInfo user = getUserByEmail(email);
-        if (user.getPreferedMfaMethod() == MfaMethod.EMAIL) {
-            throw new IllegalStateException("Email MFA is already enabled for this user.");
-        }
-        mfaManagerService.getProvider(MfaMethod.EMAIL).sendVerificationCode(user);
+        mfaManagerService.getProvider(user.getPreferedMfaMethod()).sendVerificationCode(user);
     }
 
     /**

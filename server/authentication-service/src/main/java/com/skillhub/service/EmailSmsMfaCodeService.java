@@ -9,7 +9,7 @@ import org.springframework.stereotype.Service;
 import java.util.concurrent.TimeUnit;
 
 @Service
-public class EmailVerificationCodeService {
+public class EmailSmsMfaCodeService {
     /**
      * This service generates and validates verification codes for email addresses.
      */
@@ -21,12 +21,12 @@ public class EmailVerificationCodeService {
 
 
     /**
-     * Constructor for EmailVerificationCodeService.
+     * Constructor for EmailSmsMfaCodeService.
      *
      * @param myUtil utility class for generating random codes
      */
     @Autowired
-    public EmailVerificationCodeService(MyUtil myUtil) {
+    public EmailSmsMfaCodeService(MyUtil myUtil) {
         this.myUtil = myUtil;
     }
 
@@ -38,6 +38,9 @@ public class EmailVerificationCodeService {
      * @return the generated verification code
      */
     public String generateCode(String email) {
+        if (codeCache.getIfPresent(email) != null){
+            codeCache.invalidate(email);
+        }
         String code = myUtil.generateRandomCode(6);
         codeCache.put(email, code);
         return code;

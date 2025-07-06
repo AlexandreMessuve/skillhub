@@ -1,20 +1,21 @@
 package com.skillhub.controller;
 
-import com.skillhub.dto.EnabledMfaRequest;
-import com.skillhub.dto.SetupMfaRequest;
+import com.skillhub.dto.AccountVerifyPhoneRequest;
+import com.skillhub.entity.UserInfo;
 import com.skillhub.service.UserInfoService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/user/2fa")
+@RequestMapping("/api/user")
 public class UserController {
 
     private final UserInfoService userInfoService;
@@ -22,51 +23,30 @@ public class UserController {
     /**
      * Constructor for UserController.
      *
-     * @param userInfoService the service to handle user information and MFA operations
+     * @param userInfoService the service to handle user information operations
      */
-    @Autowired
     public UserController(UserInfoService userInfoService) {
         this.userInfoService = userInfoService;
     }
 
     /**
-     * Endpoint to initiate the setup of Multi-Factor Authentication (MFA).
-     *
-     * @param setupMfaRequest the request containing MFA setup details
-     * @param authentication  the current user's authentication details
-     * @return a response entity containing the setup data
-     */
-    @PostMapping("/setup")
-    @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<Map<String, Object>> setupMfa(@Validated @RequestBody SetupMfaRequest setupMfaRequest, Authentication authentication) {
-        Map<String, Object> setupData = userInfoService.initiateMfaSetup(authentication.getName(), setupMfaRequest.getMfaMethod());
-        return ResponseEntity.ok(setupData);
-    }
-
-    /**
-     * Endpoint to enable Multi-Factor Authentication (MFA) for the user.
-     *
-     * @param enabledMfaRequest the request containing MFA enabling details
-     * @param authentication    the current user's authentication details
-     * @return a response entity containing backup codes
-     */
-    @PostMapping("/enable")
-    @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<Map<String, List<String>>> enableMfa(@Validated @RequestBody EnabledMfaRequest enabledMfaRequest, Authentication authentication) {
-        List<String> backupCodes = userInfoService.enableMfa(authentication.getName(),enabledMfaRequest.getMfaMethod(), enabledMfaRequest.getMfaCode());
-        return ResponseEntity.ok(Map.of("backupCodes", backupCodes));
-    }
-
-    /**
-     * Endpoint to disable Multi-Factor Authentication (MFA) for the user.
+     * Endpoint to send a verification code to the user's phone number.
      *
      * @param authentication the current user's authentication details
-     * @return a response entity indicating the result of the operation
+     * @return a response containing the status and message of the operation
      */
-    @PostMapping("/resend-2fa-code")
+    @PostMapping("/send-verify-phone-number")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<Void> sendMfaCode(Authentication authentication) {
-        userInfoService.sendEmailCode(authentication.getName());
-        return ResponseEntity.ok().build();
+    public ResponseEntity<Map<String, Object>> sendVerifyPhoneNumber(Authentication authentication) {
+        Map<String, Object> response = userInfoService.sendVerifyPhoneNumber(authentication.getName());
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/verify-phone-number")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Map<String, String>> verifyPhoneNumber(@Validated @RequestBody AccountVerifyPhoneRequest accountVerifyPhoneRequest, Authentication authentication) {
+        UserInfo userInfo = userInfoService.getUserByEmail(authentication.getName());
+        Map<String, String> response = userInfoService.verifyPhoneNumber(userInfo, accountVerifyPhoneRequest.getCode());
+        return ResponseEntity.ok(response);
     }
 }

@@ -128,6 +128,9 @@ public class AuthController {
             response.setMfaMethod(user.getPreferedMfaMethod());
             response.setPreAuthToken(preAuthToken);
             response.set2faEnabled(true);
+            if (user.getPreferedMfaMethod() == MfaMethod.EMAIL || user.getPreferedMfaMethod() == MfaMethod.SMS) {
+                userService.reSendMfaCode(user.getEmail());
+            }
             return ResponseEntity.ok(response);
         }
 

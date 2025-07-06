@@ -45,6 +45,10 @@ public class UserInfo {
     @Column(name = "phone_number", unique = true)
     private String phoneNumber;
 
+    @Column(name = "phone_number_verified")
+    @Builder.Default
+    private boolean phoneNumberVerified = false;
+
     @Column(name = "is_verified")
     @Builder.Default
     private boolean isVerified = false;

@@ -3,7 +3,7 @@ package com.skillhub.service.mfa;
 import com.skillhub.entity.MfaMethod;
 import com.skillhub.entity.UserInfo;
 import com.skillhub.service.EmailService;
-import com.skillhub.service.EmailVerificationCodeService;
+import com.skillhub.service.EmailSmsMfaCodeService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -11,7 +11,7 @@ import java.util.Map;
 
 @Service
 public class EmailMfaProvider implements MfaProvider {
-    private final EmailVerificationCodeService emailVerificationCodeService;
+    private final EmailSmsMfaCodeService emailSmsMfaCodeService;
 
     private final EmailService emailService;
 
@@ -20,12 +20,12 @@ public class EmailMfaProvider implements MfaProvider {
     /**
      * Constructs an EmailMfaProvider with the necessary services.
      *
-     * @param emailVerificationCodeService the service for handling email verification codes
+     * @param emailSmsMfaCodeService the service for handling email verification codes
      * @param emailService the service for sending emails
      */
     @Autowired
-    public EmailMfaProvider(EmailVerificationCodeService emailVerificationCodeService, EmailService emailService) {
-        this.emailVerificationCodeService = emailVerificationCodeService;
+    public EmailMfaProvider(EmailSmsMfaCodeService emailSmsMfaCodeService, EmailService emailService) {
+        this.emailSmsMfaCodeService = emailSmsMfaCodeService;
         this.emailService = emailService;
     }
 
@@ -56,7 +56,7 @@ public class EmailMfaProvider implements MfaProvider {
     @Override
     public void sendVerificationCode(UserInfo userInfo) {
         String email = userInfo.getEmail();
-        String code = emailVerificationCodeService.generateCode(email);
+        String code = emailSmsMfaCodeService.generateCode(email);
         emailService.send2faCodeEmail(userInfo, code);
     }
 
@@ -69,7 +69,7 @@ public class EmailMfaProvider implements MfaProvider {
      */
     @Override
     public boolean verifyCode(UserInfo userInfo, String code) {
-        return emailVerificationCodeService.isValidCode(userInfo.getEmail(), code);
+        return emailSmsMfaCodeService.isValidCode(userInfo.getEmail(), code);
     }
 
     /**
