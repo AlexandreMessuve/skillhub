@@ -1,5 +1,6 @@
 package com.skillhub.dto;
 
+import com.skillhub.entity.MfaMethod;
 import lombok.*;
 
 @Builder
@@ -10,5 +11,8 @@ import lombok.*;
 public class AuthenticationResponse {
     private String jwt;
     private String error;
-    private String firstName;
+    private String message;
+    private boolean is2faEnabled;
+    private String preAuthToken;
+    private MfaMethod mfaMethod;
 }

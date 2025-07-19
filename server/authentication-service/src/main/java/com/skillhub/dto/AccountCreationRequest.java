@@ -1,7 +1,6 @@
 package com.skillhub.dto;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import lombok.*;
 import org.springframework.validation.annotation.Validated;
@@ -29,7 +28,7 @@ public class AccountCreationRequest {
     private String firstname;
 
     @NotBlank(message = "Phone number cannot be null")
-    @Pattern(regexp = "^\\+?[0-9]{10,15}$", message = "Invalid phone number format")
+    @Pattern(regexp = "^\\+[1-9]\\d{1,14}$", message = "Invalid phone number format, must be in E.164 format (e.g., +1234567890)")
     private String phone;
 
 }
